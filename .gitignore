@@ -64,4 +64,20 @@ docker-compose.override.yml
 
 # System Files
 .DS_Store
-Thumbs.db 
+Thumbs.db
+
+# Gradle
+.gradle/
+**/build/
+!src/**/build/
+.gradletasknamecache
+gradle-app.setting
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid* 

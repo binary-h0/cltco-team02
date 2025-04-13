@@ -9,79 +9,33 @@ import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
-
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-import java.net.URI;
 
 @Configuration
+@Profile("!local")
 public class RedisConfig {
 
-    @Value("${spring.redis.url}")
-    private String redisUrl;
-
-    @Value("${spring.redis.password}")
-    private String redisPassword;
-
-    @Value("${spring.redis.database:0}")
-    private int redisDatabase;
-
-    private GenericContainer<?> redisContainer;
-
-    @PostConstruct
-    @Profile("test")
-    public void startRedisContainer() {
-        redisContainer = new GenericContainer<>("redis:7.0.5")
-                .withExposedPorts(6379)
-                .withCommand("redis-server", "--requirepass", redisPassword)
-                .waitingFor(Wait.forListeningPort());
-        redisContainer.start();
-    }
-
-    @PreDestroy
-    @Profile("test")
-    public void stopRedisContainer() {
-        if (redisContainer != null) {
-            redisContainer.stop();
-        }
-    }
-
     @Bean
-    public RedisConnectionFactory redisConnectionFactory() {
-        RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
-        
-        try {
-            if (redisContainer != null && redisContainer.isRunning()) {
-                // 테스트 환경: Testcontainers 사용
-                config.setHostName(redisContainer.getHost());
-                config.setPort(redisContainer.getMappedPort(6379));
-            } else {
-                // 운영 환경: 외부 Redis 서버 사용
-                URI uri = new URI(redisUrl);
-                config.setHostName(uri.getHost());
-                config.setPort(uri.getPort());
-            }
-            
-            config.setPassword(redisPassword);
-            config.setDatabase(redisDatabase);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to configure Redis connection", e);
+    public RedisConnectionFactory redisConnectionFactory(
+            @Value("${spring.redis.host:localhost}") String host,
+            @Value("${spring.redis.port:6379}") int port,
+            @Value("${spring.redis.password:}") String password) {
+        RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration();
+        redisConfig.setHostName(host);
+        redisConfig.setPort(port);
+        if (password != null && !password.isEmpty()) {
+            redisConfig.setPassword(password);
         }
-        
-        return new LettuceConnectionFactory(config);
+        System.out.println("Connecting to Redis at: " + host + ":" + port);
+        return new LettuceConnectionFactory(redisConfig);
     }
 
     @Bean
     public RedisTemplate<String, String> redisTemplate(RedisConnectionFactory connectionFactory) {
+        System.out.println("dev!");
         RedisTemplate<String, String> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
         template.setKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(new StringRedisSerializer());
-        template.setHashKeySerializer(new StringRedisSerializer());
-        template.setHashValueSerializer(new StringRedisSerializer());
-        template.afterPropertiesSet();
         return template;
     }
-} 
+}

@@ -2,6 +2,10 @@
 
 이 프로젝트는 Flask 기반 백엔드를 Spring Boot를 사용한 Java 백엔드로 마이그레이션한 것입니다.
 
+# 로컬환경 테스트 (클라우드 환경이 아닌 로컬환경에 구성됨)
+./gradlew clean build bootRun --args='--spring.profiles.active=local'
+
+
 ## 기능
 
 - MariaDB를 사용한 메시지 저장 및 조회

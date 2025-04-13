@@ -3,39 +3,85 @@ package com.example.backend.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
+
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+import java.net.URI;
 
 @Configuration
 public class RedisConfig {
 
-    @Value("${spring.redis.host}")
-    private String redisHost;
-
-    @Value("${spring.redis.port}")
-    private int redisPort;
+    @Value("${spring.redis.url}")
+    private String redisUrl;
 
     @Value("${spring.redis.password}")
     private String redisPassword;
 
-    @Bean
-    public RedisConnectionFactory redisConnectionFactory() {
-        RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration(redisHost, redisPort);
-        if (redisPassword != null && !redisPassword.isEmpty()) {
-            redisConfig.setPassword(redisPassword);
+    @Value("${spring.redis.database:0}")
+    private int redisDatabase;
+
+    private GenericContainer<?> redisContainer;
+
+    @PostConstruct
+    @Profile("test")
+    public void startRedisContainer() {
+        redisContainer = new GenericContainer<>("redis:7.0.5")
+                .withExposedPorts(6379)
+                .withCommand("redis-server", "--requirepass", redisPassword)
+                .waitingFor(Wait.forListeningPort());
+        redisContainer.start();
+    }
+
+    @PreDestroy
+    @Profile("test")
+    public void stopRedisContainer() {
+        if (redisContainer != null) {
+            redisContainer.stop();
         }
-        return new LettuceConnectionFactory(redisConfig);
     }
 
     @Bean
-    public RedisTemplate<String, String> redisTemplate() {
-        RedisTemplate<String, String> redisTemplate = new RedisTemplate<>();
-        redisTemplate.setConnectionFactory(redisConnectionFactory());
-        redisTemplate.setKeySerializer(new StringRedisSerializer());
-        redisTemplate.setValueSerializer(new StringRedisSerializer());
-        return redisTemplate;
+    public RedisConnectionFactory redisConnectionFactory() {
+        RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
+        
+        try {
+            if (redisContainer != null && redisContainer.isRunning()) {
+                // 테스트 환경: Testcontainers 사용
+                config.setHostName(redisContainer.getHost());
+                config.setPort(redisContainer.getMappedPort(6379));
+            } else {
+                // 운영 환경: 외부 Redis 서버 사용
+                URI uri = new URI(redisUrl);
+                config.setHostName(uri.getHost());
+                config.setPort(uri.getPort());
+            }
+            
+            config.setPassword(redisPassword);
+            config.setDatabase(redisDatabase);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to configure Redis connection", e);
+        }
+        
+        return new LettuceConnectionFactory(config);
+    }
+
+    @Bean
+    public RedisTemplate<String, String> redisTemplate(RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, String> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(new StringRedisSerializer());
+        template.setHashKeySerializer(new StringRedisSerializer());
+        template.setHashValueSerializer(new StringRedisSerializer());
+        template.afterPropertiesSet();
+        return template;
     }
 } 

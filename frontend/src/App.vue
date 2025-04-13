@@ -31,14 +31,25 @@
         <button @click="saveToDb">DB에 저장</button>
         <button @click="getFromDb">DB에서 조회</button>
         <button @click="insertSampleData" class="sample-btn">샘플 데이터 저장</button>
+        
+        <!-- 검색 기능 추가 -->
+        <div class="search-container">
+          <input v-model="searchKeyword" placeholder="검색어 입력" class="search-input">
+          <button @click="searchMessages" class="search-btn">검색</button>
+          <button v-if="isSearchActive" @click="clearSearch" class="clear-btn">검색 취소</button>
+        </div>
+        
         <div v-if="loading" class="loading-spinner">
           <p>데이터를 불러오는 중...</p>
         </div>
         <div v-if="dbData.length && !loading">
-          <h3>저장된 메시지:</h3>
+          <h3>{{ isSearchActive ? '검색 결과:' : '저장된 메시지:' }}</h3>
           <ul>
             <li v-for="item in dbData" :key="item.id">{{ item.message }} ({{ formatDate(item.created_at) }})</li>
           </ul>
+        </div>
+        <div v-if="isSearchActive && dbData.length === 0 && !loading" class="no-results">
+          <p>검색 결과가 없습니다.</p>
         </div>
       </div>
 
@@ -88,7 +99,9 @@ export default {
       offset: 0,
       limit: 20,
       loading: false,
-      hasMore: true
+      hasMore: true,
+      searchKeyword: '',
+      isSearchActive: false
     }
   },
   methods: {
@@ -254,6 +267,31 @@ export default {
     async loadMore() {
       this.offset += this.limit;
       await this.getFromDb();
+    },
+
+    async searchMessages() {
+      if (!this.searchKeyword.trim()) {
+        this.clearSearch();
+        return;
+      }
+      
+      try {
+        this.loading = true;
+        const response = await axios.get(`${API_BASE_URL}/db/search?keyword=${encodeURIComponent(this.searchKeyword)}`);
+        this.dbData = response.data;
+        this.isSearchActive = true;
+      } catch (error) {
+        console.error('메시지 검색 실패:', error);
+        alert('검색 중 오류가 발생했습니다.');
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    clearSearch() {
+      this.searchKeyword = '';
+      this.isSearchActive = false;
+      this.getFromDb();
     }
   },
   // 컴포넌트가 마운트될 때 설정
@@ -402,5 +440,54 @@ li {
   margin-top: 20px;
   font-size: 16px;
   color: #555;
+}
+
+.search-container {
+  margin-top: 10px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+}
+
+.search-input {
+  padding: 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  width: 200px;
+}
+
+.search-btn {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 15px;
+  margin-left: 10px;
+  cursor: pointer;
+}
+
+.search-btn:hover {
+  background-color: #0056b3;
+}
+
+.clear-btn {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 15px;
+  margin-left: 10px;
+  cursor: pointer;
+}
+
+.clear-btn:hover {
+  background-color: #c82333;
+}
+
+.no-results {
+  text-align: center;
+  margin-top: 10px;
+  color: #dc3545;
+  font-size: 16px;
 }
 </style> 

@@ -39,9 +39,24 @@ public class MessageController {
     }
 
     @GetMapping("/db/messages")
-    public ResponseEntity<?> getAllMessages() {
+    public ResponseEntity<?> getAllMessages(
+            @RequestParam(required = false) Integer offset,
+            @RequestParam(required = false) Integer limit) {
         try {
             List<Message> messages = messageService.getAllMessages();
+            return ResponseEntity.ok(messages);
+        } catch (Exception e) {
+            Map<String, String> response = new HashMap<>();
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+    
+    @GetMapping("/db/search")
+    public ResponseEntity<?> searchMessages(@RequestParam String keyword) {
+        try {
+            List<Message> messages = messageService.searchMessages(keyword);
             return ResponseEntity.ok(messages);
         } catch (Exception e) {
             Map<String, String> response = new HashMap<>();

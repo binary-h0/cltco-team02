@@ -28,13 +28,6 @@ dependencies {
 
     implementation "org.testcontainers:mysql:1.19.3"
     implementation "org.testcontainers:testcontainers:1.19.3"
-
-/*    // Testcontainers
-    testImplementation 'org.testcontainers:testcontainers:1.19.3'
-    testImplementation 'org.testcontainers:mysql:1.19.3'
-    testImplementation 'org.testcontainers:redis:1.19.3'
-    testImplementation 'org.testcontainers:junit-jupiter:1.19.3'
-    testRuntimeOnly 'org.springframework.boot:spring-boot-starter-test'*/
 }
 
 test {
